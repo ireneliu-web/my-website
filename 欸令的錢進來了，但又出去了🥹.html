@@ -1,0 +1,1143 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>個人財務月報表</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500;9..40,600;9..40,700&family=Noto+Sans+TC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#f5f5f0;--bg-card:#fff;--bg-input:#f4f4ef;--border:#e6e6e0;
+  --text:#1a1a1a;--text2:#5a5a5a;--muted:#ababA0;
+  --blue:#3b82f6;--blue-l:#eff6ff;--blue-m:#dbeafe;
+  --green:#16a34a;--green-l:#f0fdf4;--green-m:#bbf7d0;
+  --orange:#ea580c;--orange-l:#fff7ed;--orange-m:#fed7aa;
+  --red:#dc2626;--red-l:#fef2f2;
+  --purple:#7c3aed;--teal:#0d9488;--amber:#d97706;--amber-l:#fffbeb;--amber-m:#fde68a;
+  --sh:0 1px 4px rgba(0,0,0,.07),0 1px 2px rgba(0,0,0,.04);
+  --sh-md:0 4px 16px rgba(0,0,0,.08);
+  --r:14px;--r-sm:9px;--r-xs:6px;
+}
+*{margin:0;padding:0;box-sizing:border-box;}
+html,body{font-family:'DM Sans','Noto Sans TC',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;}
+.page{display:none;min-height:100vh;flex-direction:column;}
+.page.active{display:flex;}
+
+/* BUTTONS */
+.btn{border:none;border-radius:var(--r-sm);font-family:inherit;font-size:13px;font-weight:600;cursor:pointer;transition:all .15s;white-space:nowrap;display:inline-flex;align-items:center;gap:5px;padding:0 14px;height:36px;}
+.btn-blue{background:var(--blue);color:#fff;box-shadow:0 2px 8px rgba(59,130,246,.28);}
+.btn-blue:hover{background:#2563eb;transform:translateY(-1px);}
+.btn-green{background:var(--green);color:#fff;box-shadow:0 2px 8px rgba(22,163,74,.25);}
+.btn-green:hover{background:#15803d;transform:translateY(-1px);}
+.btn-teal{background:var(--teal);color:#fff;box-shadow:0 2px 8px rgba(13,148,136,.25);}
+.btn-teal:hover{background:#0f766e;transform:translateY(-1px);}
+.btn-amber{background:var(--amber);color:#fff;box-shadow:0 2px 8px rgba(217,119,6,.25);}
+.btn-amber:hover{background:#b45309;transform:translateY(-1px);}
+.btn-ghost{background:var(--bg-card);color:var(--text2);border:1.5px solid var(--border);}
+.btn-ghost:hover{border-color:var(--blue);color:var(--blue);}
+.btn:active{transform:scale(.97)!important;}
+.btn-sm{height:30px;font-size:11px;padding:0 11px;}
+
+/* MODAL */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:200;align-items:center;justify-content:center;backdrop-filter:blur(3px);}
+.modal-overlay.open{display:flex;}
+.modal-box{background:var(--bg-card);border-radius:var(--r);padding:24px;width:min(360px,90vw);box-shadow:0 8px 32px rgba(0,0,0,.15);}
+.modal-title{font-size:15px;font-weight:700;margin-bottom:16px;}
+.month-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px;}
+.month-btn{padding:8px 4px;border:1.5px solid var(--border);border-radius:var(--r-xs);background:var(--bg-input);font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;text-align:center;color:var(--text2);}
+.month-btn:hover{border-color:var(--blue);color:var(--blue);}
+.month-btn.active{background:var(--blue);color:#fff;border-color:var(--blue);}
+.year-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;}
+.year-nav{width:28px;height:28px;border-radius:6px;border:1.5px solid var(--border);background:var(--bg-input);font-size:14px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.year-nav:hover{border-color:var(--blue);color:var(--blue);}
+.year-label{font-size:15px;font-weight:700;}
+
+/* SYNC BADGE */
+.sync-badge{font-size:10px;padding:2px 8px;border-radius:10px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green-m);display:none;}
+.sync-badge.show{display:inline-flex;align-items:center;gap:3px;}
+
+/* SHARED */
+.month-pill{background:var(--bg-card);border:1px solid var(--border);border-radius:20px;padding:4px 12px;font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;transition:all .15s;display:inline-flex;align-items:center;gap:5px;}
+.month-pill:hover{border-color:var(--blue);color:var(--blue);}
+.input-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:13px 15px;box-shadow:var(--sh);display:flex;flex-direction:column;gap:7px;}
+.input-card-header{display:flex;align-items:center;justify-content:space-between;}
+.input-card-label{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.9px;}
+.running-total{font-size:12px;font-weight:700;border-radius:5px;padding:2px 7px;}
+.rt-green{background:var(--green-l);color:var(--green);}
+.rt-orange{background:var(--orange-l);color:var(--orange);}
+.rt-blue{background:var(--blue-l);color:var(--blue);}
+.income-row{display:grid;grid-template-columns:140px 88px;gap:5px;align-items:center;margin-bottom:5px;}
+.income-row:last-child{margin-bottom:0;}
+.cat-select{background:var(--bg-input);border:1.5px solid var(--border);border-radius:var(--r-xs);padding:5px 22px 5px 7px;font-size:12px;font-family:inherit;color:var(--text);cursor:pointer;transition:border-color .15s;appearance:none;background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M0 0l5 6 5-6z' fill='%23ababA0'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:right 6px center;width:100%;}
+.cat-select:focus{outline:none;border-color:var(--blue);}
+.amount-input{background:var(--bg-input);border:1.5px solid var(--border);border-radius:var(--r-xs);padding:5px 7px;font-size:12px;font-family:'DM Sans',monospace;color:var(--text);text-align:right;transition:border-color .15s;width:100%;}
+.amount-input:focus{outline:none;border-color:var(--blue);}
+.amount-input::placeholder{color:var(--muted);font-size:11px;}
+.fixed-row{display:grid;grid-template-columns:1fr 88px;gap:5px;align-items:center;margin-bottom:5px;}
+.fixed-row:last-child{margin-bottom:0;}
+.fixed-lbl{background:var(--bg-input);border:1.5px solid var(--border);border-radius:var(--r-xs);padding:5px 7px;font-size:12px;font-family:inherit;color:var(--text);transition:border-color .15s;width:100%;}
+.fixed-lbl:focus{outline:none;border-color:var(--blue);}
+.var-hint{font-size:11px;color:var(--muted);line-height:1.55;background:var(--bg-input);border:1px solid var(--border);border-radius:7px;padding:6px 10px;}
+.var-hint code{color:var(--blue);font-weight:600;background:var(--blue-l);padding:1px 4px;border-radius:3px;}
+.var-textarea{background:var(--bg-input);border:1.5px solid var(--border);border-radius:var(--r-sm);color:var(--text);font-family:inherit;font-size:12.5px;padding:9px 11px;resize:vertical;min-height:108px;line-height:1.85;width:100%;transition:border-color .2s;}
+.var-textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.08);}
+.var-textarea::placeholder{color:var(--muted);font-size:11px;}
+.tag-indicator{display:flex;flex-wrap:wrap;gap:4px;min-height:16px;padding:3px 0 0;}
+.tag-chip{display:inline-flex;align-items:center;gap:3px;font-size:10px;padding:2px 7px;border-radius:10px;font-weight:600;background:var(--blue-l);color:var(--blue);border:1px solid var(--blue-m);}
+.tag-chip .cn{color:var(--text2);font-weight:400;max-width:72px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+
+/* KPI */
+.kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+.kpi-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:13px 15px;box-shadow:var(--sh);overflow:hidden;position:relative;transition:box-shadow .2s,transform .2s;}
+.kpi-card:hover{box-shadow:var(--sh-md);transform:translateY(-1px);}
+.kpi-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2.5px;border-radius:0 0 var(--r) var(--r);}
+.kpi-income::after{background:linear-gradient(90deg,var(--green),#4ade80);}
+.kpi-expense::after{background:linear-gradient(90deg,var(--red),#f87171);}
+.kpi-fixed::after{background:linear-gradient(90deg,var(--orange),#fb923c);}
+.kpi-balance::after{background:linear-gradient(90deg,var(--blue),#60a5fa);}
+.kpi-daily::after{background:linear-gradient(90deg,var(--purple),#a78bfa);}
+.kpi-icon{font-size:15px;margin-bottom:7px;display:block;}
+.kpi-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.9px;margin-bottom:3px;}
+.kpi-value{font-size:22px;font-weight:700;letter-spacing:-.5px;line-height:1;margin-bottom:3px;}
+.kpi-income .kpi-value{color:var(--green);} .kpi-expense .kpi-value{color:var(--red);}
+.kpi-fixed .kpi-value{color:var(--orange);} .kpi-balance .kpi-value{color:var(--blue);}
+.kpi-daily .kpi-value{color:var(--purple);}
+.kpi-sub{font-size:10px;color:var(--muted);}
+
+/* CHART CARDS */
+.chart-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;box-shadow:var(--sh);display:flex;flex-direction:column;gap:10px;}
+.card-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;}
+.card-title{font-size:12px;font-weight:700;color:var(--text);}
+.card-pill{font-size:10px;font-weight:600;padding:2px 8px;border-radius:20px;text-transform:uppercase;letter-spacing:.3px;}
+.pill-blue{background:var(--blue-m);color:var(--blue);} .pill-green{background:var(--green-m);color:var(--green);}
+.pill-orange{background:var(--orange-m);color:var(--orange);} .pill-amber{background:var(--amber-m);color:var(--amber);}
+.chart-wrap{flex:1;position:relative;min-height:175px;}
+.wnav-btn{width:26px;height:26px;border-radius:6px;border:1.5px solid var(--border);background:var(--bg-input);font-size:12px;color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .15s;}
+.wnav-btn:hover:not(:disabled){border-color:var(--blue);color:var(--blue);}
+.wnav-btn:disabled{opacity:.3;cursor:not-allowed;}
+.wnav-label{font-size:11px;font-weight:600;color:var(--text2);background:var(--bg-input);border:1px solid var(--border);border-radius:14px;padding:2px 10px;}
+
+/* RIGHT COLUMN */
+.rank-list{display:flex;flex-direction:column;gap:4px;}
+.rank-item{display:flex;align-items:center;gap:7px;padding:7px 9px;border-radius:8px;transition:background .12s;}
+.rank-item:hover{background:var(--bg-input);}
+.rank-num{font-size:11px;font-weight:700;color:var(--muted);width:16px;text-align:center;flex-shrink:0;}
+.rank-num.gold{color:#d97706;}
+.rank-name{flex:1;font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.rank-tag{font-size:10px;padding:1px 7px;border-radius:8px;background:var(--bg-input);color:var(--muted);border:1px solid var(--border);}
+.rank-bar-wrap{width:50px;height:3px;background:var(--bg-input);border-radius:2px;overflow:hidden;}
+.rank-bar{height:100%;background:linear-gradient(90deg,var(--blue),#93c5fd);border-radius:2px;transition:width .5s;}
+.rank-amount{font-size:12px;font-weight:700;min-width:58px;text-align:right;}
+.alert-list{display:flex;flex-direction:column;gap:4px;}
+.alert-item{display:flex;align-items:flex-start;gap:7px;padding:8px 10px;background:#fff5f5;border:1px solid #fecaca;border-radius:8px;}
+.alert-text{font-size:11px;color:#7f1d1d;line-height:1.5;}
+.alert-text strong{color:var(--red);font-weight:700;}
+.no-data{display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;min-height:110px;gap:5px;color:var(--muted);font-size:11px;}
+.no-data .icon{font-size:20px;opacity:.4;}
+
+/* ── AI PANEL ── */
+.ai-panel{background:var(--bg-card);border:1px solid var(--amber-m);border-radius:var(--r);box-shadow:var(--sh);display:flex;flex-direction:column;overflow:hidden;}
+.ai-panel-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;border-bottom:1px solid var(--border);background:var(--amber-l);}
+.ai-panel-title{font-size:12px;font-weight:700;color:var(--amber);display:flex;align-items:center;gap:5px;}
+.ai-messages{flex:1;overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:10px;min-height:180px;max-height:340px;}
+.ai-msg{display:flex;flex-direction:column;gap:3px;}
+.ai-msg.assistant .bubble{background:var(--amber-l);border:1px solid var(--amber-m);border-radius:0 10px 10px 10px;padding:10px 13px;font-size:12px;line-height:1.7;color:var(--text);}
+.ai-msg.user .bubble{background:var(--blue-l);border:1px solid var(--blue-m);border-radius:10px 10px 0 10px;padding:9px 13px;font-size:12px;line-height:1.6;color:var(--text);align-self:flex-end;max-width:85%;}
+.ai-msg.assistant{align-items:flex-start;}
+.ai-msg.user{align-items:flex-end;}
+.msg-label{font-size:10px;color:var(--muted);font-weight:600;padding:0 4px;}
+.ai-typing{display:flex;gap:4px;padding:10px 13px;background:var(--amber-l);border:1px solid var(--amber-m);border-radius:0 10px 10px 10px;width:fit-content;}
+.ai-typing span{width:6px;height:6px;border-radius:50%;background:var(--amber);animation:bounce .9s infinite;}
+.ai-typing span:nth-child(2){animation-delay:.15s;}
+.ai-typing span:nth-child(3){animation-delay:.3s;}
+@keyframes bounce{0%,60%,100%{transform:translateY(0)}30%{transform:translateY(-5px)}}
+.ai-input-row{display:flex;gap:8px;padding:10px 14px;border-top:1px solid var(--border);background:var(--bg-input);}
+.ai-input{flex:1;background:var(--bg-card);border:1.5px solid var(--border);border-radius:var(--r-sm);padding:8px 11px;font-size:12px;font-family:inherit;color:var(--text);transition:border-color .15s;resize:none;height:36px;overflow:hidden;}
+.ai-input:focus{outline:none;border-color:var(--blue);}
+.ai-send{background:var(--blue);border:none;border-radius:var(--r-sm);width:36px;height:36px;color:#fff;font-size:16px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .15s;flex-shrink:0;}
+.ai-send:hover{background:#2563eb;}
+.ai-send:disabled{background:var(--muted);cursor:not-allowed;}
+
+/* analysis sections */
+.analysis-summary{background:var(--blue-l);border:1px solid var(--blue-m);border-radius:8px;padding:10px 12px;font-size:12px;line-height:1.7;color:var(--text);}
+.analysis-points{display:flex;flex-direction:column;gap:6px;}
+.analysis-point{display:flex;gap:8px;font-size:12px;line-height:1.55;}
+.analysis-point .dot{width:18px;height:18px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:10px;flex-shrink:0;margin-top:1px;}
+.dot-save{background:var(--green-m);color:var(--green);}
+.dot-warn{background:#fee2e2;color:var(--red);}
+.dot-tip{background:var(--blue-m);color:var(--blue);}
+.analysis-recs{display:flex;flex-direction:column;gap:5px;}
+.analysis-rec{background:var(--green-l);border:1px solid var(--green-m);border-radius:7px;padding:7px 11px;font-size:12px;line-height:1.55;color:var(--text);}
+
+/* FOOTER */
+.footer{display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);}
+.live-badge{display:inline-flex;align-items:center;gap:4px;border-radius:20px;padding:2px 9px;font-size:10px;font-weight:600;background:var(--green-l);color:var(--green);border:1px solid var(--green-m);}
+.live-dot{width:5px;height:5px;border-radius:50%;background:var(--green);}
+
+/* Custom Tooltip */
+.chart-tooltip{position:fixed;z-index:999;pointer-events:none;background:#1a1a1a;color:#f0f0f0;border-radius:10px;padding:10px 13px;min-width:150px;max-width:250px;box-shadow:0 8px 24px rgba(0,0,0,.25);font-size:12px;line-height:1.6;opacity:0;transition:opacity .12s;}
+.chart-tooltip.visible{opacity:1;}
+.tt-title{font-weight:700;font-size:12px;color:#fff;margin-bottom:5px;padding-bottom:5px;border-bottom:1px solid rgba(255,255,255,.12);}
+.tt-row{display:flex;align-items:center;justify-content:space-between;gap:8px;font-size:11px;}
+.tt-name{color:#d0d0d0;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.tt-tag{color:#93c5fd;font-size:10px;flex-shrink:0;}
+.tt-amt{color:#fff;font-weight:600;flex-shrink:0;}
+.tt-total{margin-top:5px;padding-top:5px;border-top:1px solid rgba(255,255,255,.12);display:flex;justify-content:space-between;font-weight:700;}
+.tt-total span:last-child{color:#4ade80;}
+
+/* ══════════════════════════════════
+   DESKTOP LAYOUT
+══════════════════════════════════ */
+@media(min-width:1024px){
+  #page-monthly{padding:22px 34px;gap:13px;}
+  .header{display:flex;align-items:center;justify-content:space-between;}
+  .header-left{display:flex;align-items:center;gap:11px;}
+  .logo{width:38px;height:38px;border-radius:10px;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:17px;color:#fff;box-shadow:0 2px 8px rgba(59,130,246,.3);flex-shrink:0;}
+  .header-title h1{font-size:17px;font-weight:700;letter-spacing:-.3px;}
+  .header-title p{font-size:11px;color:var(--muted);}
+  .header-right{display:flex;align-items:center;gap:7px;}
+  .input-grid{display:grid;grid-template-columns:1fr 1fr 1.2fr;gap:11px;}
+  /* ★ Wider right column */
+  .main-grid{display:grid;grid-template-columns:1fr 1fr 500px;gap:11px;flex:1;}
+  .kpi-row{display:grid;grid-template-columns:repeat(5,1fr);gap:10px;}
+  .footer{display:flex;align-items:center;justify-content:space-between;padding-top:8px;border-top:1px solid var(--border);font-size:11px;color:var(--muted);}
+}
+@media(max-width:1023px){
+  #page-monthly{padding:14px 16px;gap:12px;}
+  .header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+  .header-left{display:flex;align-items:center;gap:9px;}
+  .logo{width:34px;height:34px;border-radius:9px;background:var(--blue);display:flex;align-items:center;justify-content:center;font-size:15px;color:#fff;flex-shrink:0;}
+  .header-title h1{font-size:15px;font-weight:700;}
+  .header-title p{font-size:10px;color:var(--muted);}
+  .header-right{display:flex;align-items:center;gap:6px;flex-wrap:wrap;}
+  .input-grid{display:flex;flex-direction:column;gap:10px;}
+  .main-grid{display:flex;flex-direction:column;gap:10px;}
+  .kpi-row{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+  .kpi-row .kpi-card:last-child{grid-column:1/-1;}
+  .footer{padding-top:8px;border-top:1px solid var(--border);font-size:10px;color:var(--muted);}
+}
+
+/* PAGE 2 — WEEKLY */
+#page-weekly{padding:14px 16px;gap:12px;background:var(--bg);}
+@media(min-width:1024px){
+  #page-weekly{padding:20px 34px;gap:13px;}
+  .weekly-results{display:grid;grid-template-columns:1fr 1fr 340px;gap:11px;flex:1;}
+  .weekly-kpi-bar{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;}
+}
+@media(max-width:1023px){
+  .weekly-results{display:flex;flex-direction:column;gap:10px;}
+  .weekly-kpi-bar{display:grid;grid-template-columns:1fr 1fr;gap:9px;}
+}
+
+.weekly-header{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+.weekly-header-left{display:flex;align-items:center;gap:9px;flex-wrap:wrap;}
+.back-btn{display:flex;align-items:center;gap:5px;padding:0 12px;height:33px;background:var(--bg-card);border:1.5px solid var(--border);border-radius:var(--r-sm);font-size:12px;font-weight:600;color:var(--text2);cursor:pointer;transition:all .15s;}
+.back-btn:hover{border-color:var(--blue);color:var(--blue);}
+.week-selector{display:flex;gap:5px;flex-wrap:wrap;}
+.week-tab{padding:4px 12px;border-radius:16px;font-size:12px;font-weight:600;cursor:pointer;transition:all .15s;background:var(--bg-card);border:1.5px solid var(--border);color:var(--text2);line-height:1.4;text-align:center;}
+.week-tab:hover{border-color:var(--blue);color:var(--blue);}
+.week-tab.active{background:var(--blue);color:#fff;border-color:var(--blue);}
+.week-tab.overview-tab{background:var(--amber-l);border-color:var(--amber-m);color:var(--amber);}
+.week-tab.overview-tab.active{background:var(--amber);color:#fff;border-color:var(--amber);}
+.weekly-actions{display:flex;gap:6px;flex-wrap:wrap;}
+
+.weekly-input-card{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;box-shadow:var(--sh);display:flex;flex-direction:column;gap:9px;}
+.weekly-input-title{font-size:14px;font-weight:700;}
+.weekly-input-hint{font-size:11px;color:var(--muted);line-height:1.65;background:var(--bg-input);border:1px solid var(--border);border-radius:7px;padding:6px 10px;}
+.weekly-input-hint code{color:var(--blue);font-weight:600;background:var(--blue-l);padding:1px 4px;border-radius:3px;}
+.weekly-textarea{background:var(--bg-input);border:1.5px solid var(--border);border-radius:var(--r-sm);color:var(--text);font-family:inherit;font-size:13px;padding:10px 12px;resize:vertical;line-height:1.85;width:100%;min-height:155px;transition:border-color .2s;}
+.weekly-textarea:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px rgba(59,130,246,.08);}
+.weekly-textarea::placeholder{color:var(--muted);font-size:12px;}
+.week-range-banner{background:var(--blue-l);border:1px solid var(--blue-m);border-radius:8px;padding:5px 12px;font-size:12px;font-weight:600;color:var(--blue);}
+
+.wkpi{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:11px 13px;box-shadow:var(--sh);}
+.wkpi-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.9px;margin-bottom:3px;}
+.wkpi-value{font-size:19px;font-weight:700;letter-spacing:-.5px;}
+.wkpi-value.green{color:var(--green);} .wkpi-value.red{color:var(--red);} .wkpi-value.blue{color:var(--blue);} .wkpi-value.purple{color:var(--purple);}
+.wkpi-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+
+.day-breakdown{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:14px 16px;box-shadow:var(--sh);display:flex;flex-direction:column;gap:6px;overflow-y:auto;max-height:240px;}
+.day-row{display:flex;align-items:flex-start;gap:8px;padding:5px 0;border-bottom:1px solid var(--border);}
+.day-row:last-child{border-bottom:none;}
+.day-badge{min-width:60px;height:20px;border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:10px;font-weight:700;flex-shrink:0;padding:0 4px;}
+.d-mon{background:#dbeafe;color:#1d4ed8;} .d-tue{background:#d1fae5;color:#065f46;}
+.d-wed{background:#fef3c7;color:#92400e;} .d-thu{background:#fce7f3;color:#9d174d;}
+.d-fri{background:#ede9fe;color:#4c1d95;} .d-sat{background:#fee2e2;color:#991b1b;}
+.d-sun{background:#e0f2fe;color:#075985;} .d-empty{background:var(--bg-input);color:var(--muted);}
+.day-items{flex:1;display:flex;flex-wrap:wrap;gap:3px;}
+.day-chip{font-size:11px;padding:2px 6px;border-radius:5px;background:var(--bg-input);border:1px solid var(--border);color:var(--text2);}
+.day-chip .ct{color:var(--blue);font-weight:600;}
+.day-chip.empty{color:var(--muted);font-style:italic;}
+.day-total{font-size:11px;font-weight:700;color:var(--text);min-width:52px;text-align:right;flex-shrink:0;}
+.day-total.zero{color:var(--muted);}
+
+/* ── MONTHLY OVERVIEW TAB ── */
+.overview-grid{display:flex;flex-direction:column;gap:12px;flex:1;}
+@media(min-width:1024px){
+  .overview-grid{display:grid;grid-template-columns:1fr 480px;gap:13px;align-items:start;}
+}
+.overview-left{display:flex;flex-direction:column;gap:11px;}
+.overview-stat-row{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;}
+.ostat{background:var(--bg-card);border:1px solid var(--border);border-radius:var(--r);padding:13px 15px;box-shadow:var(--sh);}
+.ostat-label{font-size:10px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.9px;margin-bottom:4px;}
+.ostat-value{font-size:20px;font-weight:700;letter-spacing:-.4px;}
+.ostat-sub{font-size:10px;color:var(--muted);margin-top:2px;}
+.cat-breakdown{display:flex;flex-direction:column;gap:6px;}
+.cat-bar-row{display:flex;align-items:center;gap:10px;font-size:12px;}
+.cat-bar-label{width:68px;font-weight:500;flex-shrink:0;}
+.cat-bar-track{flex:1;height:8px;background:var(--bg-input);border-radius:4px;overflow:hidden;}
+.cat-bar-fill{height:100%;border-radius:4px;transition:width .6s ease;}
+.cat-bar-amt{min-width:60px;text-align:right;font-weight:600;font-size:11px;}
+
+/* ── TAG REFERENCE PANEL ── */
+.tag-ref-panel{width:220px;flex-shrink:0;background:var(--bg-input);border:1.5px solid var(--border);border-radius:var(--r-sm);padding:12px 13px;display:flex;flex-direction:column;gap:10px;max-height:220px;overflow-y:auto;}
+.tag-ref-title{font-size:11px;font-weight:700;color:var(--text2);text-transform:uppercase;letter-spacing:.8px;padding-bottom:6px;border-bottom:1px solid var(--border);}
+.tag-ref-group{display:flex;flex-direction:column;gap:5px;}
+.tag-ref-cat{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.6px;}
+.tag-ref-chips{display:flex;flex-wrap:wrap;gap:4px;}
+.tag-ref-chip{font-size:10px;padding:2px 8px;border-radius:10px;background:var(--bg-card);border:1px solid var(--border);color:var(--text2);cursor:pointer;transition:all .12s;font-weight:500;}
+.tag-ref-chip:hover{background:var(--blue-l);border-color:var(--blue-m);color:var(--blue);}
+.tag-ref-chip:active{transform:scale(.95);}
+
+::-webkit-scrollbar{width:4px;} ::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px;}
+</style>
+</head>
+<body>
+
+<div class="chart-tooltip" id="tt"></div>
+
+<!-- MONTH PICKER -->
+<div class="modal-overlay" id="monthModal">
+  <div class="modal-box">
+    <div class="modal-title">選擇月份</div>
+    <div class="year-row">
+      <button class="year-nav" onclick="shiftYear(-1)">‹</button>
+      <span class="year-label" id="pickerYear">2026</span>
+      <button class="year-nav" onclick="shiftYear(1)">›</button>
+    </div>
+    <div class="month-grid" id="monthGrid"></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end">
+      <button class="btn btn-ghost" onclick="closeMonthPicker()">取消</button>
+      <button class="btn btn-blue" onclick="applyMonth()">套用</button>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════ PAGE 1 — MONTHLY ═══════════ -->
+<div id="page-monthly" class="page active">
+  <div class="header">
+    <div class="header-left">
+      <div class="logo">💸</div>
+      <div class="header-title"><h1>欸令的錢進來了，但又出去了🥹</h1><p>Personal Monthly Finance Dashboard</p></div>
+    </div>
+    <div class="header-right">
+      <button class="month-pill" id="monthPill" onclick="openMonthPicker()">📅 2026 / 04 ▾</button>
+      <span class="sync-badge" id="syncBadge">↔ 已同步</span>
+      <button class="btn btn-teal" onclick="goToWeekly()">📅 週追蹤</button>
+      <button class="btn btn-ghost" onclick="clearMonthlyVar()">🗑 清除</button>
+      <button class="btn btn-green" onclick="savePNG('page-monthly','月報表')">📥 儲存</button>
+      <button class="btn btn-blue" onclick="calculate()">▶ 計算</button>
+    </div>
+  </div>
+
+  <div class="input-grid">
+    <div class="input-card">
+      <div class="input-card-header"><span class="input-card-label">💚 本月收入</span><span class="running-total rt-green" id="incomeBadge">$0</span></div>
+      <div id="incomeRows">
+        <div class="income-row"><select class="cat-select" onchange="liveIncome()"><option>薪資</option><option>獎金</option><option>副業</option><option>投資回報</option><option>其他</option></select><input class="amount-input" type="number" placeholder="0" oninput="liveIncome()"></div>
+        <div class="income-row"><select class="cat-select" onchange="liveIncome()"><option>薪資</option><option selected>獎金</option><option>副業</option><option>投資回報</option><option>其他</option></select><input class="amount-input" type="number" placeholder="0" oninput="liveIncome()"></div>
+        <div class="income-row"><select class="cat-select" onchange="liveIncome()"><option>薪資</option><option>獎金</option><option selected>副業</option><option>投資回報</option><option>其他</option></select><input class="amount-input" type="number" placeholder="0" oninput="liveIncome()"></div>
+        <div class="income-row"><select class="cat-select" onchange="liveIncome()"><option>薪資</option><option>獎金</option><option>副業</option><option selected>投資回報</option><option>其他</option></select><input class="amount-input" type="number" placeholder="0" oninput="liveIncome()"></div>
+      </div>
+    </div>
+    <div class="input-card">
+      <div class="input-card-header"><span class="input-card-label">🔒 固定支出</span><span class="running-total rt-orange" id="fixedBadge">$0</span></div>
+      <div id="fixedRows">
+        <div class="fixed-row"><input class="fixed-lbl" value="房租" oninput="liveFixed()"><input class="amount-input" type="number" placeholder="0" oninput="liveFixed()"></div>
+        <div class="fixed-row"><input class="fixed-lbl" value="電話費" oninput="liveFixed()"><input class="amount-input" type="number" placeholder="0" oninput="liveFixed()"></div>
+        <div class="fixed-row"><input class="fixed-lbl" value="定期定額" oninput="liveFixed()"><input class="amount-input" type="number" placeholder="0" oninput="liveFixed()"></div>
+        <div class="fixed-row"><input class="fixed-lbl" value="伙食低消" oninput="liveFixed()"><input class="amount-input" type="number" placeholder="0" oninput="liveFixed()"></div>
+        <div class="fixed-row"><input class="fixed-lbl" value="貓貓低消" oninput="liveFixed()"><input class="amount-input" type="number" placeholder="0" oninput="liveFixed()"></div>
+        <div class="fixed-row"><input class="fixed-lbl" value="日用品" oninput="liveFixed()"><input class="amount-input" type="number" placeholder="0" oninput="liveFixed()"></div>
+      </div>
+    </div>
+    <div class="input-card">
+      <div class="input-card-header"><span class="input-card-label">📋 變動支出</span><span class="running-total rt-blue" id="varBadge">$0</span></div>
+      <div class="var-hint">每行一天・<code>日期 項目 金額</code>・<code>Enter</code> 自動補標籤</div>
+      <textarea id="rawInput" class="var-textarea" placeholder="4/1 早餐 80 / 咖啡 150&#10;4/2 午餐 220 + 手搖飲 120" oninput="onMonthlyInput()" onkeydown="handleEnter(event,'rawInput','monthChips')"></textarea>
+      <div class="tag-indicator" id="monthChips"></div>
+    </div>
+  </div>
+
+  <div class="kpi-row">
+    <div class="kpi-card kpi-income"><span class="kpi-icon">💚</span><div class="kpi-label">本月收入</div><div class="kpi-value" id="kpiIncome">—</div><div class="kpi-sub" id="kpiIncomeSub">填入後計算</div></div>
+    <div class="kpi-card kpi-expense"><span class="kpi-icon">🔴</span><div class="kpi-label">總支出</div><div class="kpi-value" id="kpiExpense">—</div><div class="kpi-sub" id="kpiExpenseSub">固定＋變動</div></div>
+    <div class="kpi-card kpi-fixed"><span class="kpi-icon">🔒</span><div class="kpi-label">固定支出</div><div class="kpi-value" id="kpiFixed">—</div><div class="kpi-sub" id="kpiFixedSub">每月固定</div></div>
+    <div class="kpi-card kpi-balance"><span class="kpi-icon">💙</span><div class="kpi-label">本月結餘</div><div class="kpi-value" id="kpiBalance">—</div><div class="kpi-sub" id="kpiBalanceSub">收入－支出</div></div>
+    <div class="kpi-card kpi-daily"><span class="kpi-icon">📅</span><div class="kpi-label">日均支出</div><div class="kpi-value" id="kpiDaily">—</div><div class="kpi-sub" id="kpiDailySub">變動平均</div></div>
+  </div>
+
+  <div class="main-grid">
+    <div class="chart-card">
+      <div class="card-header"><span class="card-title">每日支出</span><span class="card-pill pill-blue" id="weekLabel">—</span></div>
+      <div style="display:flex;align-items:center;justify-content:space-between;">
+        <button class="wnav-btn" id="prevBtn" onclick="changeWeekPage(-1)" disabled>‹</button>
+        <span class="wnav-label" id="weekNavTxt">—</span>
+        <button class="wnav-btn" id="nextBtn" onclick="changeWeekPage(1)" disabled>›</button>
+      </div>
+      <div class="chart-wrap"><canvas id="barChart"></canvas><div class="no-data" id="barEmpty"><span class="icon">📊</span>按「計算」後顯示</div></div>
+    </div>
+    <div class="chart-card">
+      <div class="card-header"><span class="card-title">支出分類</span><span class="card-pill pill-green">依標籤分類</span></div>
+      <div class="chart-wrap"><canvas id="pieChart"></canvas><div class="no-data" id="pieEmpty"><span class="icon">🥧</span>按「計算」後顯示</div></div>
+    </div>
+    <!-- ★ RIGHT COL — wider, more readable -->
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      <div class="chart-card" style="flex:1">
+        <div class="card-header"><span class="card-title">前 8 大支出</span><span class="card-pill pill-orange">Top 8</span></div>
+        <div class="rank-list" id="rankList"><div class="no-data"><span class="icon">🏆</span>按「計算」後顯示</div></div>
+      </div>
+      <div class="chart-card" style="flex:1">
+        <div class="card-header"><span class="card-title">異常支出</span><span class="card-pill" style="background:#fee2e2;color:var(--red)">Alert</span></div>
+        <div class="alert-list" id="alertList"><div class="no-data"><span class="icon">✅</span>按「計算」後顯示</div></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="footer">
+    <span class="live-badge"><span class="live-dot"></span>離線運作・資料不上傳</span>
+    <span id="footerStats">等待輸入</span>
+    <span id="footerTime"></span>
+  </div>
+</div>
+
+
+<!-- ═══════════ PAGE 2 — WEEKLY ═══════════ -->
+<div id="page-weekly" class="page">
+  <div class="weekly-header">
+    <div class="weekly-header-left">
+      <button class="back-btn" onclick="goToMonthly()">← 返回</button>
+      <div class="week-selector" id="weekTabs"></div>
+    </div>
+    <div class="weekly-actions" id="weeklyActions">
+      <button class="btn btn-ghost" onclick="clearWeek()">🗑 清除</button>
+      <button class="btn btn-green" onclick="savePNG('page-weekly','每週追蹤')">📥 儲存</button>
+      <button class="btn btn-blue" onclick="parseWeekly()">▶ 解析</button>
+    </div>
+  </div>
+
+  <!-- Normal week view -->
+  <div id="weekNormalView">
+    <div class="weekly-input-card" style="margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px">
+        <div class="weekly-input-title" id="weeklyTitle">— 週支出記錄</div>
+        <div class="week-range-banner" id="weekRangeBanner">📅 —</div>
+      </div>
+      <div class="weekly-input-hint">格式：<code>日期 項目名稱 金額</code>・<code>Enter</code> 自動補標籤・<code>/</code> 或 <code>+</code> 分隔同日多筆・點右側標籤快速插入</div>
+      <!-- ★ split: textarea + tag panel -->
+      <div style="display:flex;gap:12px;align-items:flex-start;">
+        <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
+          <textarea id="weeklyTextarea" class="weekly-textarea" style="min-height:155px" placeholder="4/1 早餐 80 / 咖啡 150&#10;4/2 午餐 220 + 手搖飲 120" oninput="onWeeklyInput()" onkeydown="handleEnter(event,'weeklyTextarea','weeklyChips')"></textarea>
+          <div class="tag-indicator" id="weeklyChips"></div>
+        </div>
+        <!-- TAG REFERENCE PANEL -->
+        <div class="tag-ref-panel">
+          <div class="tag-ref-title">🏷 標籤速選</div>
+          <div class="tag-ref-group">
+            <div class="tag-ref-cat" style="color:#3b82f6">固定支出</div>
+            <div class="tag-ref-chips">
+              <span class="tag-ref-chip" onclick="insertTag('weeklyTextarea','房租')">#房租</span>
+              <span class="tag-ref-chip" onclick="insertTag('weeklyTextarea','電話費')">#電話費</span>
+              <span class="tag-ref-chip" onclick="insertTag('weeklyTextarea','定期定額')">#定期定額</span>
+              <span class="tag-ref-chip" onclick="insertTag('weeklyTextarea','伙食')">#伙食</span>
+              <span class="tag-ref-chip" onclick="insertTag('weeklyTextarea','伙食共同支出')">#伙食共同支出</span>
+              <span class="tag-ref-chip" onclick="insertTag('weeklyTextarea','貓貓基本')">#貓貓基本</span>
+              <span class="tag-ref-chip" onclick="insertTag('weeklyTextarea','日用品')">#日用品</span>
+              <span class="tag-ref-chip" onclick="insertTag('weeklyTextarea','交通')">#交通</span>
+            </div>
+          </div>
+          <div class="tag-ref-group">
+            <div class="tag-ref-cat" style="color:#22c55e">犒賞基金</div>
+            <div class="tag-ref-chips">
+              <span class="tag-ref-chip" onclick="insertTag('weeklyTextarea','漂亮飯')">#漂亮飯</span>
+              <span class="tag-ref-chip" onclick="insertTag('weeklyTextarea','uber/烏波')">#uber/烏波</span>
+              <span class="tag-ref-chip" onclick="insertTag('weeklyTextarea','衣服')">#衣服</span>
+              <span class="tag-ref-chip" onclick="insertTag('weeklyTextarea','飲料')">#飲料</span>
+              <span class="tag-ref-chip" onclick="insertTag('weeklyTextarea','娛樂')">#娛樂</span>
+              <span class="tag-ref-chip" onclick="insertTag('weeklyTextarea','就是想要')">#就是想要</span>
+              <span class="tag-ref-chip" onclick="insertTag('weeklyTextarea','犒賞貓貓')">#犒賞貓貓</span>
+            </div>
+          </div>
+          <div class="tag-ref-group">
+            <div class="tag-ref-cat" style="color:#f97316">其他</div>
+            <div class="tag-ref-chips">
+              <span class="tag-ref-chip" onclick="insertTag('weeklyTextarea','醫療')">#醫療</span>
+              <span class="tag-ref-chip" onclick="insertTag('weeklyTextarea','修理')">#修理</span>
+              <span class="tag-ref-chip" onclick="insertTag('weeklyTextarea','臨時支出')">#臨時支出</span>
+            </div>
+          </div>
+          <div class="tag-ref-group">
+            <div class="tag-ref-cat" style="color:#a855f7">特殊</div>
+            <div class="tag-ref-chips">
+              <span class="tag-ref-chip" onclick="insertTag('weeklyTextarea','搬家')">#搬家</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="weekly-kpi-bar" style="margin-bottom:12px">
+      <div class="wkpi"><div class="wkpi-label">本週支出</div><div class="wkpi-value red" id="wkpiTotal">—</div><div class="wkpi-sub" id="wkpiSub">解析後顯示</div></div>
+      <div class="wkpi"><div class="wkpi-label">日均支出</div><div class="wkpi-value blue" id="wkpiDaily">—</div><div class="wkpi-sub">7 天平均</div></div>
+      <div class="wkpi"><div class="wkpi-label">最高單筆</div><div class="wkpi-value purple" id="wkpiMax">—</div><div class="wkpi-sub" id="wkpiMaxName">—</div></div>
+      <div class="wkpi"><div class="wkpi-label">記錄筆數</div><div class="wkpi-value green" id="wkpiCount">—</div><div class="wkpi-sub">筆支出</div></div>
+    </div>
+
+    <div class="weekly-results" style="margin-bottom:12px">
+      <div class="chart-card">
+        <div class="card-header"><span class="card-title">本週每日支出（週一—週日）</span><span class="card-pill pill-blue">Daily</span></div>
+        <div class="chart-wrap"><canvas id="wBarChart"></canvas><div class="no-data" id="wBarEmpty"><span class="icon">📊</span>按「解析」後顯示</div></div>
+      </div>
+      <div class="chart-card">
+        <div class="card-header"><span class="card-title">支出分類</span><span class="card-pill pill-green">Category</span></div>
+        <div class="chart-wrap"><canvas id="wPieChart"></canvas><div class="no-data" id="wPieEmpty"><span class="icon">🥧</span>按「解析」後顯示</div></div>
+      </div>
+      <div class="day-breakdown" id="dayBreakdown">
+        <div class="card-header" style="margin-bottom:2px"><span class="card-title">逐日明細</span><span class="card-pill pill-orange">週一—週日</span></div>
+        <div class="no-data"><span class="icon">📋</span>解析後顯示</div>
+      </div>
+    </div>
+
+    <!-- ★ WEEKLY AI PANEL -->
+    <div class="ai-panel" id="weeklyAiPanel">
+      <div class="ai-panel-header">
+        <span class="ai-panel-title">🤖 AI 分析・本週支出建議</span>
+        <button class="btn btn-amber btn-sm" onclick="triggerWeeklyAI()" id="weeklyAiBtn">🤖 分析本週</button>
+      </div>
+      <div class="ai-messages" id="weeklyAiMsgs">
+        <div class="no-data" style="min-height:80px"><span class="icon">💬</span>解析本週資料後，點「分析本週」獲得 AI 建議</div>
+      </div>
+      <div class="ai-input-row">
+        <input class="ai-input" id="weeklyAiInput" placeholder="繼續詢問，例如：哪類支出可以減少？" onkeydown="if(event.key==='Enter')sendWeeklyChat()">
+        <button class="ai-send" onclick="sendWeeklyChat()" id="weeklyAiSend">➤</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ★ MONTHLY OVERVIEW TAB VIEW -->
+  <div id="overviewView" style="display:none">
+    <div class="overview-grid">
+      <div class="overview-left">
+        <div class="overview-stat-row">
+          <div class="ostat"><div class="ostat-label">本月總支出</div><div class="ostat-value" id="ovTotal" style="color:var(--red)">—</div><div class="ostat-sub" id="ovTotalSub">—</div></div>
+          <div class="ostat"><div class="ostat-label">本月結餘</div><div class="ostat-value" id="ovBalance" style="color:var(--blue)">—</div><div class="ostat-sub" id="ovBalanceSub">—</div></div>
+          <div class="ostat"><div class="ostat-label">儲蓄率</div><div class="ostat-value" id="ovSaveRate" style="color:var(--green)">—</div><div class="ostat-sub">收入占比</div></div>
+        </div>
+
+        <div class="chart-card">
+          <div class="card-header"><span class="card-title">分類支出結構</span><span class="card-pill pill-green">全月</span></div>
+          <div class="cat-breakdown" id="ovCatBreakdown"><div class="no-data"><span class="icon">📊</span>請先在月報表計算後再查看</div></div>
+        </div>
+
+        <div class="chart-card">
+          <div class="card-header"><span class="card-title">各週支出趨勢</span><span class="card-pill pill-blue">週次比較</span></div>
+          <div class="chart-wrap" style="min-height:160px"><canvas id="ovWeekChart"></canvas><div class="no-data" id="ovWeekEmpty"><span class="icon">📈</span>解析後顯示</div></div>
+        </div>
+
+        <div class="chart-card">
+          <div class="card-header"><span class="card-title">前 8 大支出（全月）</span><span class="card-pill pill-orange">Top 8</span></div>
+          <div class="rank-list" id="ovRankList"><div class="no-data"><span class="icon">🏆</span>解析後顯示</div></div>
+        </div>
+      </div>
+
+      <!-- ★ MONTHLY AI PANEL -->
+      <div class="ai-panel" id="monthlyAiPanel" style="height:fit-content;min-height:500px">
+        <div class="ai-panel-header">
+          <span class="ai-panel-title">🤖 AI 分析・本月支出總覽</span>
+          <button class="btn btn-amber btn-sm" onclick="triggerMonthlyAI()" id="monthlyAiBtn">🤖 分析本月</button>
+        </div>
+        <div class="ai-messages" id="monthlyAiMsgs" style="max-height:420px">
+          <div class="no-data" style="min-height:120px"><span class="icon">💬</span>點「分析本月」獲得完整月度財務分析</div>
+        </div>
+        <div class="ai-input-row">
+          <input class="ai-input" id="monthlyAiInput" placeholder="繼續詢問，例如：下個月要怎麼改善？" onkeydown="if(event.key==='Enter')sendMonthlyChat()">
+          <button class="ai-send" onclick="sendMonthlyChat()" id="monthlyAiSend">➤</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<script>
+// ══════════════════════════════════════
+//  CONSTANTS
+// ══════════════════════════════════════
+const WD_TW=['日','一','二','三','四','五','六'];
+const ISO_LABELS=['週一','週二','週三','週四','週五','週六','週日'];
+const ISO_CLS=['d-mon','d-tue','d-wed','d-thu','d-fri','d-sat','d-sun'];
+
+// ══════════════════════════════════════
+//  STATE
+// ══════════════════════════════════════
+let CY=2026,CM=4;
+let pickerYear=2026,pickerMonth=4;
+let isoWeeks=[];
+let weeklyTexts=[];
+let currentWeekIdx=0;
+let isOverviewTab=false;
+let barInst=null,pieInst=null,wBarInst=null,wPieInst=null,ovWeekInst=null;
+let barPages=[],currentBarPage=0,lastDailyAvg=0;
+let syncT=null,isSyncing=false;
+// AI chat histories
+let weeklyChatHistory=[];
+let monthlyChatHistory=[];
+// Cached full-month data for AI
+let cachedMonthData=null;
+let cachedWeekData=null;
+
+// ══════════════════════════════════════
+//  ISO WEEK HELPERS
+// ══════════════════════════════════════
+function isoMonday(d){
+  const day=new Date(d); const dow=day.getDay();
+  const diff=dow===0?-6:1-dow;
+  day.setDate(day.getDate()+diff); day.setHours(0,0,0,0); return day;
+}
+function buildISOWeeks(year,month){
+  const weeks=[]; const firstDay=new Date(year,month-1,1); const lastDay=new Date(year,month,0);
+  let mon=isoMonday(firstDay);
+  while(mon<=lastDay){
+    const days=[];
+    for(let i=0;i<7;i++){const d=new Date(mon);d.setDate(d.getDate()+i);days.push({date:new Date(d),inMonth:d.getMonth()===month-1&&d.getFullYear()===year});}
+    const inM=days.filter(d=>d.inMonth);
+    const rangeStr=inM.length?`${inM[0].date.getMonth()+1}/${inM[0].date.getDate()}—${inM[inM.length-1].date.getMonth()+1}/${inM[inM.length-1].date.getDate()}`:'';
+    weeks.push({mon:new Date(mon),sun:new Date(new Date(mon).setDate(mon.getDate()+6)),days,rangeStr,label:`第 ${weeks.length+1} 週`});
+    mon.setDate(mon.getDate()+7);
+  }
+  return weeks;
+}
+function dateKey(d){return `${d.getFullYear()}-${d.getMonth()+1}-${d.getDate()}`;}
+function dateLabelShort(d){return `${d.getMonth()+1}/${d.getDate()}`;}
+function dateLabelFull(d){return `${d.getMonth()+1}/${d.getDate()}（${WD_TW[d.getDay()]}）`;}
+
+// ══════════════════════════════════════
+//  MONTH PICKER
+// ══════════════════════════════════════
+function openMonthPicker(){pickerYear=CY;pickerMonth=CM;renderPickerGrid();document.getElementById('monthModal').classList.add('open');}
+function closeMonthPicker(){document.getElementById('monthModal').classList.remove('open');}
+function shiftYear(d){pickerYear+=d;renderPickerGrid();}
+function renderPickerGrid(){
+  document.getElementById('pickerYear').textContent=pickerYear;
+  document.getElementById('monthGrid').innerHTML=['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'].map((m,i)=>
+    `<button class="month-btn ${pickerYear===CY&&i+1===CM?'active':''}" onclick="selectPickerMonth(${i+1})">${m}</button>`).join('');
+}
+function selectPickerMonth(m){pickerMonth=m;document.querySelectorAll('.month-btn').forEach((b,i)=>b.classList.toggle('active',i+1===m));}
+function applyMonth(){const changed=CY!==pickerYear||CM!==pickerMonth;CY=pickerYear;CM=pickerMonth;closeMonthPicker();initMonth(changed);}
+function initMonth(changed){
+  isoWeeks=buildISOWeeks(CY,CM);
+  weeklyTexts=isoWeeks.map((_,i)=>weeklyTexts[i]||'');
+  currentWeekIdx=0;isOverviewTab=false;
+  buildWeekTabs();
+  document.getElementById('monthPill').textContent=`📅 ${CY} / ${String(CM).padStart(2,'0')} ▾`;
+  if(changed){document.getElementById('rawInput').value='';liveVar();refreshChips('rawInput','monthChips');}
+  cachedMonthData=null;cachedWeekData=null;
+  weeklyChatHistory=[];monthlyChatHistory=[];
+}
+function buildWeekTabs(){
+  const el=document.getElementById('weekTabs');
+  let html=isoWeeks.map((w,i)=>
+    `<button class="week-tab ${i===0?'active':''}" onclick="switchWeek(${i},this)">${w.label}<br><small style="font-weight:400;font-size:10px">${w.rangeStr}</small></button>`
+  ).join('');
+  html+=`<button class="week-tab overview-tab" onclick="switchToOverview(this)">📊 本月總覽</button>`;
+  el.innerHTML=html;
+}
+
+// ══════════════════════════════════════
+//  TAG RULES — 依新分類定義
+// ══════════════════════════════════════
+// 固定支出 tags: 房租 電話費 定期定額 伙食 伙食共同支出 貓貓基本 日用品 交通
+// 犒賞基金 tags: 漂亮飯 uber/烏波 衣服 飲料 娛樂 就是想要 犒賞貓貓
+// 其他 tags: 醫療 修理 臨時支出
+// 特殊 tags: 搬家
+const FIXED_TAGS=['房租','電話費','定期定額','伙食','伙食共同支出','貓貓基本','日用品','交通'];
+const REWARD_TAGS=['漂亮飯','uber/烏波','uber','烏波','衣服','飲料','娛樂','就是想要','犒賞貓貓'];
+const OTHER_TAGS=['醫療','修理','臨時支出'];
+const SPECIAL_TAGS=['搬家'];
+
+const TAG_RULES=[
+  {kw:['房租','租金'],tag:'房租'},
+  {kw:['電話費','電話','手機費'],tag:'電話費'},
+  {kw:['定期定額','定存','投資'],tag:'定期定額'},
+  {kw:['早餐','午餐','晚餐','宵夜','便當','外食','超市','菜市場','炒飯','麵','飯','麵包','燒肉','火鍋','熱炒','小吃','豆漿','蛋餅','早午餐','聚餐'],tag:'伙食'},
+  {kw:['共同','共餐','合吃'],tag:'伙食共同支出'},
+  {kw:['貓糧','狗糧','貓砂','貓罐','飼料','貓咪'],tag:'貓貓基本'},
+  {kw:['日用品','衛生紙','清潔','洗髮','洗碗','生活用品'],tag:'日用品'},
+  {kw:['捷運','公車','計程車','停車','油','高鐵','火車','機票','交通','uber','烏波'],tag:'交通'},
+  {kw:['漂亮飯','高級餐廳','約會餐'],tag:'漂亮飯'},
+  {kw:['衣服','衣','鞋','包','服飾','穿搭'],tag:'衣服'},
+  {kw:['咖啡','手搖','飲料','珍奶','茶','果汁','拿鐵','紅茶','可可','甜點','蛋糕'],tag:'飲料'},
+  {kw:['電影','演唱會','展覽','KTV','旅行','旅遊','景點','票','書','訂閱','Netflix','Spotify','課程'],tag:'娛樂'},
+  {kw:['就是想要','購物','衝動','買好玩','零食'],tag:'就是想要'},
+  {kw:['貓玩具','貓零食','寵物用品','貓衣','犒賞貓'],tag:'犒賞貓貓'},
+  {kw:['藥','醫院','診所','牙醫','健檢','醫療','藥局','看診'],tag:'醫療'},
+  {kw:['修理','維修','修繕','修手機','修電腦'],tag:'修理'},
+  {kw:['臨時','緊急','突發'],tag:'臨時支出'},
+  {kw:['搬家','搬運','打包'],tag:'搬家'},
+];
+function localTag(name){
+  const n=name.toLowerCase();
+  for(const r of TAG_RULES) if(r.kw.some(k=>n.includes(k.toLowerCase())||name.includes(k))) return r.tag;
+  return '其他';
+}
+function getCatFromTag(tag){
+  if(FIXED_TAGS.includes(tag)) return '固定支出';
+  if(REWARD_TAGS.some(t=>tag.includes(t)||t.includes(tag))) return '犒賞基金';
+  if(OTHER_TAGS.includes(tag)) return '其他';
+  if(SPECIAL_TAGS.includes(tag)) return '特殊';
+  return '其他';
+}
+
+// ══════════════════════════════════════
+//  AUTO-TAG
+// ══════════════════════════════════════
+function handleEnter(e,tid,cid){
+  if(e.key!=='Enter')return;
+  setTimeout(()=>{
+    const ta=document.getElementById(tid);const lines=ta.value.split('\n');
+    if(lines.length<2)return;
+    const idx=lines.length-2;const tagged=autoTagLine(lines[idx]);
+    if(tagged!==lines[idx]){lines[idx]=tagged;ta.value=lines.join('\n');ta.selectionStart=ta.selectionEnd=ta.value.length;}
+    refreshChips(tid,cid);
+  },0);
+}
+function autoTagLine(line){
+  const dp=parseDatePfx(line);const pfx=dp?dp.raw:'';const rest=dp?line.slice(dp.raw.length):line;
+  let out='';
+  rest.split(/([\/\+])/).forEach(p=>{
+    if(p==='/'||p==='+'){out+=' '+p;return;}
+    const t=p.trim();if(!t)return;
+    if(/#[\u4e00-\u9fa5a-zA-Z0-9_\-]+/.test(t)){out+=' '+t;return;}
+    const nameOnly=t.replace(/\d[\d,]*/g,'').trim();
+    out+=' '+t+' #'+(nameOnly?localTag(nameOnly):'雜項');
+  });
+  return pfx+out.trim();
+}
+function refreshChips(tid,cid){
+  const raw=document.getElementById(tid).value;const chips=[];
+  raw.split('\n').forEach(line=>{
+    const dp=parseDatePfx(line);const rest=dp?line.slice(dp.raw.length):line;
+    rest.split(/[\/\+]/).forEach(part=>{
+      const noTag=part.replace(/#[\u4e00-\u9fa5a-zA-Z0-9_\-]+/g,'').trim();
+      const nm=noTag.match(/\d[\d,]*/);const name=noTag.replace(/\d[\d,]*/g,'').trim();
+      const tagM=part.match(/#([\u4e00-\u9fa5a-zA-Z0-9_\-]+)/);
+      if(name&&nm&&tagM)chips.push({name,tag:tagM[1]});
+    });
+  });
+  document.getElementById(cid).innerHTML=chips.slice(-8).map(c=>`<span class="tag-chip"><span class="cn">${c.name}</span>#${c.tag}</span>`).join('');
+}
+
+// ══════════════════════════════════════
+//  PARSE
+// ══════════════════════════════════════
+function parseDatePfx(line){const m=line.match(/^(\d{1,2})[\/\-月](\d{1,2})[日号]?\s*/);if(!m)return null;return{month:parseInt(m[1]),day:parseInt(m[2]),raw:m[0]};}
+function parseRaw(raw){
+  const map={};if(!raw.trim())return map;
+  raw.split('\n').map(l=>l.trim()).filter(l=>l).forEach(line=>{
+    const dp=parseDatePfx(line);if(!dp)return;
+    const d=new Date(CY,dp.month-1,dp.day);const k=dateKey(d);
+    if(!map[k])map[k]={date:d,items:[]};
+    line.slice(dp.raw.length).split(/[\/\+]/).map(p=>p.trim()).filter(p=>p).forEach(part=>{
+      const tags=part.match(/#([\u4e00-\u9fa5a-zA-Z0-9_\-]+)/g)||[];
+      const noTag=part.replace(/#[\u4e00-\u9fa5a-zA-Z0-9_\-]+/g,'').trim();
+      const nm=noTag.match(/\d[\d,]*/);const amount=nm?parseInt(nm[0].replace(/,/g,'')):0;
+      const name=noTag.replace(/\d[\d,]*/g,'').trim()||'未命名';
+      const tag=tags[0]?tags[0].replace('#',''):localTag(name);
+      if(amount>0)map[k].items.push({name,amount,tag});
+    });
+  });
+  return map;
+}
+
+// ══════════════════════════════════════
+//  LIVE TOTALS
+// ══════════════════════════════════════
+function liveIncome(){let s=0;document.querySelectorAll('#incomeRows .amount-input').forEach(i=>s+=(parseFloat(i.value)||0));document.getElementById('incomeBadge').textContent='$'+s.toLocaleString();}
+function liveFixed(){let s=0;document.querySelectorAll('#fixedRows .amount-input').forEach(i=>s+=(parseFloat(i.value)||0));document.getElementById('fixedBadge').textContent='$'+s.toLocaleString();}
+function liveVar(){let s=0;document.getElementById('rawInput').value.split('\n').forEach(line=>{line.split(/[\/\+]/).forEach(part=>{const m=part.replace(/#\S+/g,'').match(/\d[\d,]*/);if(m)s+=parseInt(m[0].replace(/,/g,''));});});document.getElementById('varBadge').textContent='$'+s.toLocaleString();}
+function clearMonthlyVar(){document.getElementById('rawInput').value='';liveVar();refreshChips('rawInput','monthChips');document.getElementById('monthChips').innerHTML='';}
+
+// Insert tag at cursor position in textarea
+function insertTag(textareaId, tag){
+  const ta=document.getElementById(textareaId);
+  ta.focus();
+  const start=ta.selectionStart, end=ta.selectionEnd;
+  const val=ta.value;
+  const ins=' #'+tag;
+  ta.value=val.slice(0,start)+ins+val.slice(end);
+  ta.selectionStart=ta.selectionEnd=start+ins.length;
+  // trigger sync
+  if(textareaId==='weeklyTextarea') onWeeklyInput();
+  else onMonthlyInput();
+}
+
+// ══════════════════════════════════════
+//  BIDIRECTIONAL SYNC
+// ══════════════════════════════════════
+function onMonthlyInput(){liveVar();refreshChips('rawInput','monthChips');if(isSyncing)return;clearTimeout(syncT);syncT=setTimeout(syncMonthToWeekly,400);}
+function syncMonthToWeekly(){
+  isSyncing=true;const map=parseRaw(document.getElementById('rawInput').value);
+  const newTexts=isoWeeks.map(()=>'');
+  Object.values(map).forEach(({date,items})=>{
+    const wi=isoWeeks.findIndex(w=>date>=w.mon&&date<=w.sun);if(wi<0)return;
+    const line=dateLabelShort(date)+' '+items.map(it=>`${it.name} ${it.amount}${it.tag?' #'+it.tag:''}`).join(' / ');
+    newTexts[wi]+=(newTexts[wi]?'\n':'')+line;
+  });
+  weeklyTexts=newTexts;
+  if(!isOverviewTab){const wta=document.getElementById('weeklyTextarea');if(wta)wta.value=weeklyTexts[currentWeekIdx]||'';}
+  isSyncing=false;flashSync();
+}
+function onWeeklyInput(){weeklyTexts[currentWeekIdx]=document.getElementById('weeklyTextarea').value;refreshChips('weeklyTextarea','weeklyChips');if(isSyncing)return;clearTimeout(syncT);syncT=setTimeout(syncWeeklyToMonth,400);}
+function syncWeeklyToMonth(){
+  isSyncing=true;const allLines=[];
+  weeklyTexts.forEach(txt=>{if(!txt.trim())return;txt.split('\n').map(l=>l.trim()).filter(l=>l).forEach(l=>allLines.push(l));});
+  allLines.sort((a,b)=>{const da=parseDatePfx(a),db=parseDatePfx(b);if(!da||!db)return 0;return da.month!==db.month?da.month-db.month:da.day-db.day;});
+  document.getElementById('rawInput').value=allLines.join('\n');liveVar();refreshChips('rawInput','monthChips');isSyncing=false;flashSync();
+}
+function flashSync(){const b=document.getElementById('syncBadge');b.classList.add('show');clearTimeout(b._t);b._t=setTimeout(()=>b.classList.remove('show'),2000);}
+
+// ══════════════════════════════════════
+//  TOOLTIP
+// ══════════════════════════════════════
+const ttEl=document.getElementById('tt');
+function showTT(e,html){ttEl.innerHTML=html;ttEl.classList.add('visible');moveTT(e);}
+function moveTT(e){let x=e.clientX+14,y=e.clientY-10;const w=Math.min(260,window.innerWidth-20);if(x+w>window.innerWidth)x=e.clientX-w-4;if(y+200>window.innerHeight)y=e.clientY-200;ttEl.style.left=x+'px';ttEl.style.top=y+'px';}
+function hideTT(){ttEl.classList.remove('visible');}
+document.addEventListener('mousemove',moveTT);
+
+// ══════════════════════════════════════
+//  MONTHLY CALCULATE
+// ══════════════════════════════════════
+function calculate(){
+  const income=[...document.querySelectorAll('#incomeRows .amount-input')].reduce((s,i)=>s+(parseFloat(i.value)||0),0);
+  const fixed=[...document.querySelectorAll('#fixedRows .amount-input')].reduce((s,i)=>s+(parseFloat(i.value)||0),0);
+  const dateMap=parseRaw(document.getElementById('rawInput').value);
+  const allTxns=Object.values(dateMap).flatMap(d=>d.items.map(it=>({...it,date:d.date})));
+  const varTotal=allTxns.reduce((s,t)=>s+t.amount,0);
+  const total=fixed+varTotal;const balance=income-total;
+  const numDays=Object.keys(dateMap).length;const dailyAvg=numDays?Math.round(varTotal/numDays):0;
+  lastDailyAvg=dailyAvg;
+
+  // cache for AI
+  const fixedItems=[...document.querySelectorAll('#fixedRows .fixed-row')].map(r=>({name:r.querySelector('.fixed-lbl').value,amount:parseFloat(r.querySelector('.amount-input').value)||0})).filter(r=>r.amount>0);
+  const incomeItems=[...document.querySelectorAll('#incomeRows .income-row')].map(r=>({cat:r.querySelector('.cat-select').value,amount:parseFloat(r.querySelector('.amount-input').value)||0})).filter(r=>r.amount>0);
+  cachedMonthData={income,fixed,varTotal,total,balance,dailyAvg,numDays,allTxns,fixedItems,incomeItems,dateMap,CY,CM};
+
+  const fmt=n=>'$'+n.toLocaleString();
+  document.getElementById('kpiIncome').textContent=fmt(income);
+  document.getElementById('kpiExpense').textContent=fmt(total);
+  document.getElementById('kpiFixed').textContent=fmt(fixed);
+  document.getElementById('kpiBalance').textContent=fmt(balance);
+  document.getElementById('kpiDaily').textContent=fmt(dailyAvg);
+  const fp=total?Math.round(fixed/total*100):0;const sp=income?Math.round(balance/income*100):0;
+  const cats=[...document.querySelectorAll('#incomeRows .cat-select')].filter((_,i)=>([...document.querySelectorAll('#incomeRows .amount-input')][i].value>0)).map(s=>s.value);
+  document.getElementById('kpiIncomeSub').textContent=[...new Set(cats)].slice(0,2).join('＋')||'—';
+  document.getElementById('kpiExpenseSub').textContent=`固定佔 ${fp}%`;document.getElementById('kpiFixedSub').textContent='共 3 項';
+  document.getElementById('kpiBalanceSub').textContent=`儲蓄率 ${sp}%`;document.getElementById('kpiDailySub').textContent=`${numDays} 天紀錄`;
+
+  // bar pages
+  barPages=isoWeeks.map(w=>{
+    const days=w.days.map((dObj,isoIdx)=>{
+      const k=dateKey(dObj.date);const items=dateMap[k]?dateMap[k].items:[];
+      return{isoIdx,date:dObj.date,inMonth:dObj.inMonth,label:dateLabelShort(dObj.date),fullLabel:dateLabelFull(dObj.date),items,total:items.reduce((s,t)=>s+t.amount,0)};
+    });
+    return{weekLabel:w.label,rangeStr:w.rangeStr,days};
+  });
+  currentBarPage=0;buildBarNav();renderBarChart();
+
+  const catItems={'固定支出':[],'犒賞基金':[],'其他':[],'特殊':[]};
+  allTxns.forEach(t=>{const c=getCatFromTag(t.tag);catItems[c].push(t);});
+  fixedItems.forEach(fi=>catItems['固定支出'].push({name:fi.name,amount:fi.amount,tag:'固定支出'}));
+  const catMap={};Object.keys(catItems).forEach(k=>catMap[k]=catItems[k].reduce((s,t)=>s+t.amount,0));
+  renderPie('pieChart','pieEmpty',catMap,total,catItems);
+
+  const all=[...allTxns,...fixedItems.map(fi=>({...fi,tag:'固定支出'}))];
+  const sorted=[...all].sort((a,b)=>b.amount-a.amount).slice(0,8);const maxA=sorted[0]?.amount||1;
+  document.getElementById('rankList').innerHTML=sorted.map((t,i)=>`<div class="rank-item"><div class="rank-num ${i===0?'gold':''}">${i===0?'🥇':i+1}</div><div class="rank-name">${t.name}</div><div class="rank-tag">#${t.tag||'固定支出'}</div><div class="rank-bar-wrap"><div class="rank-bar" style="width:${Math.round(t.amount/maxA*100)}%"></div></div><div class="rank-amount">$${t.amount.toLocaleString()}</div></div>`).join('')||'<div class="no-data"><span class="icon">🏆</span>無資料</div>';
+
+  const avg2=all.length?all.reduce((s,t)=>s+t.amount,0)/all.length:0;
+  const alerts=all.filter(t=>t.amount>avg2*2&&t.amount>500);
+  document.getElementById('alertList').innerHTML=alerts.length?alerts.map(t=>`<div class="alert-item"><div class="alert-text"><strong>${t.name}</strong>（#${t.tag||'固定'}）$${t.amount.toLocaleString()}，約平均 <strong>${Math.round(t.amount/avg2)}x</strong></div></div>`).join(''):'<div class="no-data" style="min-height:50px"><span class="icon">✅</span>無異常</div>';
+
+  document.getElementById('footerStats').textContent=`共 ${allTxns.length} 筆 · ${numDays} 天`;
+}
+
+// ══════════════════════════════════════
+//  BAR CHART
+// ══════════════════════════════════════
+function buildBarNav(){
+  document.getElementById('prevBtn').disabled=currentBarPage===0;
+  document.getElementById('nextBtn').disabled=currentBarPage>=barPages.length-1;
+  const pg=barPages[currentBarPage];if(!pg)return;
+  document.getElementById('weekNavTxt').textContent=pg.weekLabel;
+  document.getElementById('weekLabel').textContent=`${pg.weekLabel} ${pg.rangeStr}`;
+}
+function changeWeekPage(d){currentBarPage=Math.max(0,Math.min(barPages.length-1,currentBarPage+d));buildBarNav();renderBarChart();}
+function renderBarChart(){
+  const pg=barPages[currentBarPage];if(!pg){document.getElementById('barEmpty').style.display='flex';return;}
+  document.getElementById('barEmpty').style.display='none';
+  if(barInst)barInst.destroy();
+  const data=pg.days.map(d=>d.total);const canvas=document.getElementById('barChart');
+  barInst=new Chart(canvas.getContext('2d'),{type:'bar',data:{labels:pg.days.map(d=>d.inMonth?`${ISO_LABELS[d.isoIdx]}\n${d.label}`:ISO_LABELS[d.isoIdx]),datasets:[{label:'支出',data,backgroundColor:data.map((v,i)=>!pg.days[i].inMonth?'rgba(200,200,200,0.3)':v>lastDailyAvg*2?'#fca5a5':'#bfdbfe'),borderColor:data.map((v,i)=>!pg.days[i].inMonth?'#ddd':v>lastDailyAvg*2?'#ef4444':'#3b82f6'),borderWidth:1.5,borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{grid:{display:false},ticks:{color:'#ababA0',font:{family:'DM Sans',size:10},maxRotation:0}},y:{grid:{color:'#f0f0ea'},border:{display:false},ticks:{color:'#ababA0',font:{family:'DM Sans',size:11},callback:v=>`$${v.toLocaleString()}`}}},onHover:(e,els)=>{canvas.style.cursor=els.length?'pointer':'default';}}});
+  canvas.onmousemove=e=>{const pts=barInst.getElementsAtEventForMode(e,'index',{intersect:false},true);if(!pts.length){hideTT();return;}const d=pg.days[pts[0].index];if(!d.inMonth){hideTT();return;}if(!d.items.length){showTT(e,`<div class="tt-title">${d.fullLabel}</div><div style="color:#888;font-size:11px">無支出記錄</div>`);return;}const rows=d.items.map(it=>`<div class="tt-row"><span class="tt-name">${it.name}</span><span class="tt-tag">#${it.tag}</span><span class="tt-amt">$${it.amount.toLocaleString()}</span></div>`).join('');showTT(e,`<div class="tt-title">${d.fullLabel}</div>${rows}<div class="tt-total"><span>合計</span><span>$${d.total.toLocaleString()}</span></div>`);};
+  canvas.onmouseleave=hideTT;
+}
+
+// ══════════════════════════════════════
+//  PIE CHART
+// ══════════════════════════════════════
+function renderPie(cid,eid,catMap,total,catItemsMap){
+  document.getElementById(eid).style.display='none';const old=cid==='pieChart'?pieInst:wPieInst;if(old)old.destroy();
+  const CAT_COLORS={'固定支出':'#3b82f6','犒賞基金':'#22c55e','其他':'#f97316','特殊':'#a855f7'};
+  const bgColors=Object.keys(catMap).map(k=>CAT_COLORS[k]||'#94a3b8');
+  const bdColors=bgColors;
+  const canvas=document.getElementById(cid);
+  const inst=new Chart(canvas.getContext('2d'),{type:'doughnut',data:{labels:Object.keys(catMap),datasets:[{data:Object.values(catMap),backgroundColor:bgColors.map(c=>c+'bb'),borderColor:bdColors,borderWidth:2,hoverOffset:8}]},options:{responsive:true,maintainAspectRatio:false,cutout:'60%',plugins:{legend:{position:'right',labels:{color:'#5a5a5a',font:{family:'DM Sans',size:11},padding:12,usePointStyle:true}},tooltip:{enabled:false}},onHover:(e,els)=>{canvas.style.cursor=els.length?'pointer':'default';}}});
+  canvas.onmousemove=e=>{const pts=inst.getElementsAtEventForMode(e,'nearest',{intersect:true},true);if(!pts.length){hideTT();return;}const idx=pts[0].index;const catName=Object.keys(catMap)[idx];const catTotal=Object.values(catMap)[idx];const pct=total?Math.round(catTotal/total*100):0;const items=(catItemsMap?catItemsMap[catName]:[]).slice(0,6);const rows=items.map(it=>`<div class="tt-row"><span class="tt-name">${it.name}</span><span class="tt-tag">#${it.tag}</span><span class="tt-amt">$${it.amount.toLocaleString()}</span></div>`).join('');const more=catItemsMap&&catItemsMap[catName].length>6?`<div style="color:#888;font-size:10px;margin-top:3px">還有 ${catItemsMap[catName].length-6} 筆…</div>`:'';showTT(e,`<div class="tt-title">${catName}・${pct}%</div>${rows}${more}<div class="tt-total"><span>小計</span><span>$${catTotal.toLocaleString()}</span></div>`);};
+  canvas.onmouseleave=hideTT;
+  if(cid==='pieChart')pieInst=inst;else wPieInst=inst;
+}
+
+// ══════════════════════════════════════
+//  PAGE NAV
+// ══════════════════════════════════════
+function goToWeekly(){document.getElementById('page-monthly').classList.remove('active');document.getElementById('page-weekly').classList.add('active');renderWeeklyPage();}
+function goToMonthly(){weeklyTexts[currentWeekIdx]=document.getElementById('weeklyTextarea')?.value||'';document.getElementById('page-weekly').classList.remove('active');document.getElementById('page-monthly').classList.add('active');}
+
+// ══════════════════════════════════════
+//  WEEKLY PAGE
+// ══════════════════════════════════════
+function switchWeek(idx,btn){
+  if(!isOverviewTab)weeklyTexts[currentWeekIdx]=document.getElementById('weeklyTextarea').value;
+  currentWeekIdx=idx;isOverviewTab=false;
+  document.querySelectorAll('.week-tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');
+  document.getElementById('weekNormalView').style.display='';document.getElementById('overviewView').style.display='none';
+  document.getElementById('weeklyActions').style.display='flex';
+  renderWeeklyPage();
+}
+function switchToOverview(btn){
+  if(!isOverviewTab)weeklyTexts[currentWeekIdx]=document.getElementById('weeklyTextarea').value;
+  isOverviewTab=true;
+  document.querySelectorAll('.week-tab').forEach(t=>t.classList.remove('active'));btn.classList.add('active');
+  document.getElementById('weekNormalView').style.display='none';document.getElementById('overviewView').style.display='';
+  document.getElementById('weeklyActions').style.display='none';
+  renderOverview();
+}
+function renderWeeklyPage(){
+  const w=isoWeeks[currentWeekIdx];
+  document.getElementById('weeklyTextarea').value=weeklyTexts[currentWeekIdx]||'';
+  document.getElementById('weeklyTitle').textContent=`${w?w.label:'—'} 支出記錄`;
+  document.getElementById('weekRangeBanner').textContent=`📅 ${w?w.rangeStr:'—'}`;
+  ['wkpiTotal','wkpiDaily','wkpiMax','wkpiCount'].forEach(id=>document.getElementById(id).textContent='—');
+  ['wBarEmpty','wPieEmpty'].forEach(id=>document.getElementById(id).style.display='flex');
+  if(wBarInst){wBarInst.destroy();wBarInst=null;}if(wPieInst){wPieInst.destroy();wPieInst=null;}
+  document.getElementById('dayBreakdown').innerHTML=`<div class="card-header" style="margin-bottom:2px"><span class="card-title">逐日明細</span><span class="card-pill pill-orange">週一—週日</span></div><div class="no-data"><span class="icon">📋</span>解析後顯示</div>`;
+  document.getElementById('weeklyChips').innerHTML='';refreshChips('weeklyTextarea','weeklyChips');
+  // reset AI
+  document.getElementById('weeklyAiMsgs').innerHTML='<div class="no-data" style="min-height:80px"><span class="icon">💬</span>解析本週資料後，點「分析本週」獲得 AI 建議</div>';
+  weeklyChatHistory=[];cachedWeekData=null;
+}
+function clearWeek(){weeklyTexts[currentWeekIdx]='';document.getElementById('weeklyTextarea').value='';document.getElementById('weeklyChips').innerHTML='';}
+
+function parseWeekly(){
+  const raw=document.getElementById('weeklyTextarea').value;
+  const dateMap=parseRaw(raw);const w=isoWeeks[currentWeekIdx];if(!w)return;
+  const txns=Object.values(dateMap).flatMap(d=>d.items.map(it=>({...it,date:d.date})));
+  const total=txns.reduce((s,t)=>s+t.amount,0);const maxT=txns.length?txns.reduce((a,b)=>a.amount>b.amount?a:b,txns[0]):{name:'—',amount:0};
+  document.getElementById('wkpiTotal').textContent='$'+total.toLocaleString();
+  document.getElementById('wkpiDaily').textContent='$'+Math.round(total/7).toLocaleString();
+  document.getElementById('wkpiMax').textContent='$'+maxT.amount.toLocaleString();document.getElementById('wkpiMaxName').textContent=maxT.name;
+  document.getElementById('wkpiCount').textContent=txns.length;
+  cachedWeekData={weekLabel:w.label,rangeStr:w.rangeStr,txns,total,daily:Math.round(total/7),max:maxT};
+
+  const slots=w.days.map((dObj,isoIdx)=>{const k=dateKey(dObj.date);const items=dateMap[k]?dateMap[k].items:[];return{isoIdx,date:dObj.date,inMonth:dObj.inMonth,label:dateLabelShort(dObj.date),fullLabel:dateLabelFull(dObj.date),items,total:items.reduce((s,t)=>s+t.amount,0)};});
+  const barData=slots.map(s=>s.total);const avgAmt=barData.reduce((a,b)=>a+b,0)/7;
+  document.getElementById('wBarEmpty').style.display='none';if(wBarInst)wBarInst.destroy();
+  const wCanvas=document.getElementById('wBarChart');
+  wBarInst=new Chart(wCanvas.getContext('2d'),{type:'bar',data:{labels:slots.map(s=>s.inMonth?`${ISO_LABELS[s.isoIdx]}\n${s.label}`:ISO_LABELS[s.isoIdx]),datasets:[{label:'支出',data:barData,backgroundColor:barData.map((v,i)=>!slots[i].inMonth?'rgba(200,200,200,0.25)':v>avgAmt*1.8?'#fca5a5':'#bfdbfe'),borderColor:barData.map((v,i)=>!slots[i].inMonth?'#ddd':v>avgAmt*1.8?'#ef4444':'#3b82f6'),borderWidth:1.5,borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{enabled:false}},scales:{x:{grid:{display:false},ticks:{color:'#ababA0',font:{family:'DM Sans',size:10},maxRotation:0}},y:{grid:{color:'#f0f0ea'},border:{display:false},ticks:{color:'#ababA0',font:{family:'DM Sans',size:11},callback:v=>`$${v.toLocaleString()}`}}},onHover:(e,els)=>{wCanvas.style.cursor=els.length?'pointer':'default';}}});
+  wCanvas.onmousemove=e=>{const pts=wBarInst.getElementsAtEventForMode(e,'index',{intersect:false},true);if(!pts.length){hideTT();return;}const s=slots[pts[0].index];if(!s.items.length){showTT(e,`<div class="tt-title">${s.fullLabel}</div><div style="color:#888;font-size:11px">無支出記錄</div>`);return;}const rows=s.items.map(it=>`<div class="tt-row"><span class="tt-name">${it.name}</span><span class="tt-tag">#${it.tag}</span><span class="tt-amt">$${it.amount.toLocaleString()}</span></div>`).join('');showTT(e,`<div class="tt-title">${s.fullLabel}</div>${rows}<div class="tt-total"><span>合計</span><span>$${s.total.toLocaleString()}</span></div>`);};wCanvas.onmouseleave=hideTT;
+
+  const catMap={'固定支出':0,'犒賞基金':0,'其他':0,'特殊':0};const catItemsW={'固定支出':[],'犒賞基金':[],'其他':[],'特殊':[]};
+  txns.forEach(t=>{const c=getCatFromTag(t.tag);catMap[c]+=t.amount;catItemsW[c].push(t);});
+  renderPie('wPieChart','wPieEmpty',catMap,total,catItemsW);
+
+  let bd=`<div class="card-header" style="margin-bottom:2px"><span class="card-title">逐日明細</span><span class="card-pill pill-orange">週一—週日</span></div>`;
+  slots.forEach(s=>{const cls=ISO_CLS[s.isoIdx];const lbl=`${ISO_LABELS[s.isoIdx]} ${s.inMonth?s.label:''}`;if(!s.items.length){bd+=`<div class="day-row"><span class="day-badge ${s.inMonth?cls:'d-empty'}">${lbl}</span><div class="day-items"><span class="day-chip empty">無記錄</span></div><div class="day-total zero">$0</div></div>`;return;}const chips=s.items.map(t=>`<span class="day-chip">${t.name} <strong>$${t.amount}</strong> <span class="ct">#${t.tag}</span></span>`).join('');bd+=`<div class="day-row"><span class="day-badge ${cls}">${lbl}</span><div class="day-items">${chips}</div><div class="day-total">$${s.total.toLocaleString()}</div></div>`;});
+  document.getElementById('dayBreakdown').innerHTML=bd;
+}
+
+// ══════════════════════════════════════
+//  OVERVIEW TAB
+// ══════════════════════════════════════
+function renderOverview(){
+  const data=cachedMonthData;
+  if(!data){document.getElementById('ovTotal').textContent='—';document.getElementById('ovBalance').textContent='—';document.getElementById('ovSaveRate').textContent='—';document.getElementById('ovCatBreakdown').innerHTML='<div class="no-data"><span class="icon">📊</span>請先在月報表按「計算」</div>';return;}
+
+  document.getElementById('ovTotal').textContent='$'+data.total.toLocaleString();
+  document.getElementById('ovTotalSub').textContent=`固定 $${data.fixed.toLocaleString()} + 變動 $${data.varTotal.toLocaleString()}`;
+  document.getElementById('ovBalance').textContent='$'+data.balance.toLocaleString();
+  document.getElementById('ovBalanceSub').textContent=`收入 $${data.income.toLocaleString()}`;
+  const sp=data.income?Math.round(data.balance/data.income*100):0;
+  document.getElementById('ovSaveRate').textContent=sp+'%';
+
+  // Category breakdown bars
+  const catColors={'固定支出':'#3b82f6','犒賞基金':'#22c55e','其他':'#f97316','特殊':'#a855f7'};
+  const catMap={'固定支出':{items:[],color:'#3b82f6'},'犒賞基金':{items:[],color:'#22c55e'},'其他':{items:[],color:'#f97316'},'特殊':{items:[],color:'#a855f7'}};
+  data.allTxns.forEach(t=>{const c=getCatFromTag(t.tag);catMap[c].items.push(t);});
+  data.fixedItems.forEach(fi=>catMap['固定支出'].items.push({...fi,tag:'固定支出'}));
+  const catTotals={};Object.keys(catMap).forEach(k=>catTotals[k]=catMap[k].items.reduce((s,t)=>s+t.amount,0));
+  const maxCat=Math.max(...Object.values(catTotals),1);
+  document.getElementById('ovCatBreakdown').innerHTML=Object.entries(catTotals).map(([k,v])=>`
+    <div class="cat-bar-row">
+      <div class="cat-bar-label">${k}</div>
+      <div class="cat-bar-track"><div class="cat-bar-fill" style="width:${Math.round(v/maxCat*100)}%;background:${catMap[k].color}"></div></div>
+      <div class="cat-bar-amt" style="color:${catMap[k].color}">$${v.toLocaleString()}</div>
+    </div>`).join('');
+
+  // Per-week bar
+  const wTotals=isoWeeks.map((w,i)=>{const t=parseRaw(weeklyTexts[i]||'');return Object.values(t).reduce((s,d)=>s+d.items.reduce((ss,it)=>ss+it.amount,0),0);});
+  document.getElementById('ovWeekEmpty').style.display='none';if(ovWeekInst)ovWeekInst.destroy();
+  ovWeekInst=new Chart(document.getElementById('ovWeekChart').getContext('2d'),{type:'bar',data:{labels:isoWeeks.map(w=>w.label),datasets:[{label:'週支出',data:wTotals,backgroundColor:'#bfdbfe',borderColor:'#3b82f6',borderWidth:1.5,borderRadius:6}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>` $${c.parsed.y.toLocaleString()}`}}},scales:{x:{grid:{display:false},ticks:{color:'#ababA0',font:{family:'DM Sans',size:11}}},y:{grid:{color:'#f0f0ea'},border:{display:false},ticks:{color:'#ababA0',font:{family:'DM Sans',size:11},callback:v=>`$${v.toLocaleString()}`}}}}});
+
+  // Top 8 all month
+  const all=[...data.allTxns,...data.fixedItems.map(fi=>({...fi,tag:'固定支出'}))];
+  const sorted=[...all].sort((a,b)=>b.amount-a.amount).slice(0,8);const maxA=sorted[0]?.amount||1;
+  document.getElementById('ovRankList').innerHTML=sorted.map((t,i)=>`<div class="rank-item"><div class="rank-num ${i===0?'gold':''}">${i===0?'🥇':i+1}</div><div class="rank-name">${t.name}</div><div class="rank-tag">#${t.tag||'固定'}</div><div class="rank-bar-wrap"><div class="rank-bar" style="width:${Math.round(t.amount/maxA*100)}%"></div></div><div class="rank-amount">$${t.amount.toLocaleString()}</div></div>`).join('');
+}
+
+// ══════════════════════════════════════
+//  AI HELPERS
+// ══════════════════════════════════════
+function buildWeeklyContext(){
+  if(!cachedWeekData)return'（尚未解析本週資料，請先按「解析」）';
+  const d=cachedWeekData;
+  const breakdown=d.txns.map(t=>`${t.name}($${t.amount})#${t.tag}`).join('、');
+  return`【${d.weekLabel}（${d.rangeStr}）】本週合計 $${d.total}，日均 $${d.daily}，最高單筆：${d.max.name} $${d.max.amount}。各筆支出：${breakdown}`;
+}
+function buildMonthlyContext(){
+  if(!cachedMonthData)return'（尚未在月報表計算，請先按「計算」）';
+  const d=cachedMonthData;
+  const breakdown=d.allTxns.map(t=>`${t.name}($${t.amount})#${t.tag}`).join('、');
+  const fixedStr=d.fixedItems.map(f=>`${f.name} $${f.amount}`).join('、');
+  const incomeStr=d.incomeItems.map(i=>`${i.cat} $${i.amount}`).join('、');
+  const sp=d.income?Math.round(d.balance/d.income*100):0;
+  const wTotals=isoWeeks.map((w,i)=>{const t=parseRaw(weeklyTexts[i]||'');return{label:w.label,total:Object.values(t).reduce((s,dd)=>s+dd.items.reduce((ss,it)=>ss+it.amount,0),0)};}).map(w=>`${w.label} $${w.total}`).join('、');
+  return`【${d.CY}年${d.CM}月月報】收入：${incomeStr}，合計 $${d.income}。固定支出：${fixedStr}，合計 $${d.fixed}。變動支出合計 $${d.varTotal}，共 ${d.numDays} 天。總支出 $${d.total}，結餘 $${d.balance}，儲蓄率 ${sp}%。各週支出：${wTotals}。各筆變動：${breakdown}`;
+}
+
+async function callClaude(messages){
+  const resp=await fetch('https://api.anthropic.com/v1/messages',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({model:'claude-sonnet-4-20250514',max_tokens:1000,messages})});
+  const data=await resp.json();
+  return data.content.map(c=>c.text||'').join('');
+}
+
+function appendMsg(containerId,role,text){
+  const el=document.getElementById(containerId);
+  // remove empty placeholder
+  const empty=el.querySelector('.no-data');if(empty)empty.remove();
+  const div=document.createElement('div');div.className=`ai-msg ${role}`;
+  div.innerHTML=`<div class="msg-label">${role==='assistant'?'🤖 AI 分析':'👤 你'}</div><div class="bubble">${text.replace(/\n/g,'<br>')}</div>`;
+  el.appendChild(div);el.scrollTop=el.scrollHeight;
+}
+function showTyping(containerId){
+  const el=document.getElementById(containerId);
+  const div=document.createElement('div');div.className='ai-msg assistant';div.id='typingIndicator';
+  div.innerHTML=`<div class="msg-label">🤖 AI 分析</div><div class="ai-typing"><span></span><span></span><span></span></div>`;
+  el.appendChild(div);el.scrollTop=el.scrollHeight;
+}
+function removeTyping(){const t=document.getElementById('typingIndicator');if(t)t.remove();}
+
+const WEEKLY_SYS=`你是一位專業的個人財務顧問助理，專門分析台灣用戶的每週記帳資料。
+請用繁體中文回覆，格式為：
+1. 【本週摘要】一段話總結
+2. 【值得注意】2-3個條列重點（節省、風險或異常）
+3. 【本週建議】2-3個具體可行建議
+
+回覆簡潔有力，每點不超過 40 字。`;
+
+const MONTHLY_SYS=`你是一位專業的個人財務顧問助理，專門分析台灣用戶的月度記帳報告。
+請用繁體中文回覆，格式為：
+1. 【月度摘要】一段話總結本月財務狀況
+2. 【值得注意】3-4個條列重點（高消費分類、儲蓄率、異常支出、週趨勢）
+3. 【下月建議】3個具體可行的財務改善建議
+
+回覆結構清晰，每點不超過 50 字。`;
+
+async function triggerWeeklyAI(){
+  const btn=document.getElementById('weeklyAiBtn');btn.disabled=true;btn.textContent='分析中…';
+  const ctx=buildWeeklyContext();
+  const firstMsg={role:'user',content:`請分析我的本週支出資料：${ctx}`};
+  weeklyChatHistory=[firstMsg];
+  showTyping('weeklyAiMsgs');
+  try{
+    const reply=await callClaude([{role:'user',content:WEEKLY_SYS+'\n\n'+firstMsg.content}]);
+    removeTyping();weeklyChatHistory.push({role:'assistant',content:reply});
+    appendMsg('weeklyAiMsgs','assistant',reply);
+  }catch(e){removeTyping();appendMsg('weeklyAiMsgs','assistant','⚠️ 連線失敗，請確認網路後再試。');}
+  btn.disabled=false;btn.textContent='🤖 再次分析';
+}
+async function sendWeeklyChat(){
+  const inp=document.getElementById('weeklyAiInput');const msg=inp.value.trim();if(!msg)return;
+  inp.value='';appendMsg('weeklyAiMsgs','user',msg);
+  const ctx=buildWeeklyContext();
+  weeklyChatHistory.push({role:'user',content:msg});
+  const msgs=[{role:'user',content:WEEKLY_SYS+'\n\n背景資料：'+ctx},...weeklyChatHistory.slice(-8)];
+  showTyping('weeklyAiMsgs');
+  const send=document.getElementById('weeklyAiSend');send.disabled=true;
+  try{const reply=await callClaude(msgs);removeTyping();weeklyChatHistory.push({role:'assistant',content:reply});appendMsg('weeklyAiMsgs','assistant',reply);}
+  catch(e){removeTyping();appendMsg('weeklyAiMsgs','assistant','⚠️ 連線失敗，請再試。');}
+  send.disabled=false;
+}
+
+async function triggerMonthlyAI(){
+  const btn=document.getElementById('monthlyAiBtn');btn.disabled=true;btn.textContent='分析中…';
+  const ctx=buildMonthlyContext();
+  const firstMsg={role:'user',content:`請分析我的本月完整財務資料：${ctx}`};
+  monthlyChatHistory=[firstMsg];
+  showTyping('monthlyAiMsgs');
+  try{
+    const reply=await callClaude([{role:'user',content:MONTHLY_SYS+'\n\n'+firstMsg.content}]);
+    removeTyping();monthlyChatHistory.push({role:'assistant',content:reply});
+    appendMsg('monthlyAiMsgs','assistant',reply);
+  }catch(e){removeTyping();appendMsg('monthlyAiMsgs','assistant','⚠️ 連線失敗，請確認網路後再試。');}
+  btn.disabled=false;btn.textContent='🤖 再次分析';
+}
+async function sendMonthlyChat(){
+  const inp=document.getElementById('monthlyAiInput');const msg=inp.value.trim();if(!msg)return;
+  inp.value='';appendMsg('monthlyAiMsgs','user',msg);
+  const ctx=buildMonthlyContext();
+  monthlyChatHistory.push({role:'user',content:msg});
+  const msgs=[{role:'user',content:MONTHLY_SYS+'\n\n背景資料：'+ctx},...monthlyChatHistory.slice(-8)];
+  showTyping('monthlyAiMsgs');
+  const send=document.getElementById('monthlyAiSend');send.disabled=true;
+  try{const reply=await callClaude(msgs);removeTyping();monthlyChatHistory.push({role:'assistant',content:reply});appendMsg('monthlyAiMsgs','assistant',reply);}
+  catch(e){removeTyping();appendMsg('monthlyAiMsgs','assistant','⚠️ 連線失敗，請再試。');}
+  send.disabled=false;
+}
+
+// ══════════════════════════════════════
+//  SAVE PNG
+// ══════════════════════════════════════
+function savePNG(pid,label){const el=document.getElementById(pid);html2canvas(el,{scale:2,useCORS:true,backgroundColor:'#f5f5f0'}).then(canvas=>{const a=document.createElement('a');a.download=`${label}_${CY}${String(CM).padStart(2,'0')}.png`;a.href=canvas.toDataURL('image/png');a.click();});}
+
+// ══════════════════════════════════════
+//  INIT
+// ══════════════════════════════════════
+function updateClock(){const n=new Date();const el=document.getElementById('footerTime');if(el)el.textContent=n.toLocaleDateString('zh-TW')+' '+n.toLocaleTimeString('zh-TW');}
+setInterval(updateClock,1000);updateClock();
+initMonth(false);
+</script>
+</body>
+</html>
